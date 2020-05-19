@@ -178,6 +178,7 @@ async def process_callback_button(callback_query: types.CallbackQuery):
 			if check_add_ssh_pub() == 'True\n':
 				await bot.send_message(get_admins_id(), u'SSH ключ пользователя %s (id:%s) добавлен' % (callback_query.data.split(' ')[2], callback_query.data.split(' ')[1]))
 				await bot.send_message(callback_query.data.split(' ')[1], u'Ваш ключ добавлен и Вам предоставлен доступ')
+				await bot.send_message(callback_query.data.split(' ')[1], "Адресс для подключения к серверу: 93.157.232.12: порт: 42069.")
 			else:
 				await bot.send_message(get_admins_id(), u'Ключ не верный')
 				await bot.send_message(callback_query.data.split(' ')[1], u'Ключ не верный')
