@@ -65,6 +65,9 @@ def add_ssh_pub_to_tmp(key):
 def check_add_ssh_pub():
 	return os.popen("/home/pi/ArturBot/bot3/check_add_ssh_pub.sh").read()
 
+def get_temp():
+	return os.popen("sudo /home/pi/ArturBot/bot3/temp").read()
+
 bot = Bot(token = TOKEN)
 dp = Dispatcher(bot)
 
@@ -106,14 +109,34 @@ async def process_ssh_rsa_command(message: types.Message):
 			for i in range(1, 3):
 				string = u'%s %s' % (string, key[i])
 			string = u'%s\n' % (string[1:])
-			print(string)
+			#print(string)
 			add_ssh_pub_to_tmp(string)
 	else:
 		await bot.send_message(message.from_user.id, text = u'Вы не авторизованы!!!')
 
 
+@dp.message_handler(commands=['check_temp'])
+async def process_ssh_rsa_command(message: types.Message):
+	if check_user(message.from_user.id):
+		await bot.send_message(message.from_user.id, get_temp())
+	else:
+		await bot.send_message(message.from_user.id, text = u'Вы не авторизованы!!!')
+
+@dp.message_handler()
+async def process_digt_command(message: types.Message):
+	if check_user(message.from_user.id):
+		if message.text.isdigit():
+			global time
+			time = int(message.text)
+			await bot.send_message(message.from_user.id, text = u'Выберите измерение времени!', reply_markup=kb.time_format)
+		else:
+			await bot.send_message(message.from_user.id, text = u'Повторите ввод')
+	else:
+		await bot.send_message(message.from_user.id, text = u'Вы не авторизованы.')
+
+
 @dp.callback_query_handler(lambda call: True)
-async def process_callback_1hour(callback_query: types.CallbackQuery):
+async def process_callback_button(callback_query: types.CallbackQuery):
 	if callback_query.data.split(' ')[0] == 'add_approve':
 		if not check_user(int(callback_query.data.split(' ')[1])):
 			user = Users(user_id = callback_query.data.split(' ')[1], firstname = callback_query.data.split(' ')[2], role = "user")
