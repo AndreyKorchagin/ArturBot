@@ -4,6 +4,8 @@ from aiogram.dispatcher import Dispatcher
 from aiogram.utils import executor
 from aiogram import Bot
 from aiogram import types
+from aiogram.utils.markdown import text, bold, italic, code, pre
+from aiogram.types import ParseMode, InputMediaPhoto, InputMediaVideo, ChatActions
 from sqlalchemy import create_engine
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.sql import select
@@ -14,9 +16,9 @@ from database import Base, Users
 import keyboards as kb
 from config import TOKEN
 
-engine = create_engine(f'sqlite:///users.db')
+engine = create_engine(f'sqlite:////home/pi/ArturBot/bot3/users.db')
 
-if not os.path.isfile(f'./users.db'):
+if not os.path.isfile(f'./home/pi/ArturBot/bot3/users.db'):
     Base.metadata.create_all(engine)
 
 session_factory = sessionmaker(bind=engine)
@@ -57,6 +59,9 @@ def get_admins_id():
 		return(i.user_id)
 	return False
 
+def get_count_users():
+	return session.query(Users).count()
+
 def add_ssh_pub_to_tmp(key):
 	f = open("/home/pi/ArturBot/bot3/ssh.tmp", "w+")
 	f.write(key)
@@ -84,12 +89,10 @@ async def process_start_command(message):
 
 @dp.message_handler(commands=['help'])
 async def process_help_command(message: types.Message):
-	await message.reply("Напиши мне что-нибудь, и я отпрпавлю этот текст тебе в ответ!")
-	#await bot.send_message(message.from_user.id, text = 'HHHHH', reply_markup=kb.hours)
+	msg = text(bold('Я могу ответить на следующие команды:'),
+		'/start', '/help', '/ssh_add', '/check_temp', '/list', '/del_user', sep='\n')
+	await bot.send_message(message.from_user.id, msg)
 
-@dp.message_handler(commands=['add'])
-async def process_ssh_add_command(message: types.Message):
-	await bot.send_message("Напиши мне что-нибудь, и я отпрпавлю этот текст тебе в ответ!")
 
 @dp.message_handler(commands=['ssh_add'])
 async def process_ssh_add_command(message: types.Message):
@@ -122,6 +125,27 @@ async def process_ssh_rsa_command(message: types.Message):
 	else:
 		await bot.send_message(message.from_user.id, text = u'Вы не авторизованы!!!')
 
+@dp.message_handler(commands=['list'])
+async def process_list_command(message: types.Message):
+    if check_role(message.from_user.id, "admin"):
+    	string = ""
+    	for instance in session.query(Users).order_by(Users.id): 
+		    string = "%s%d.\t%s\t(id:%d)\n" % (string, instance.id, instance.firstname, instance.user_id)
+    	await bot.send_message(message.from_user.id, text = string)
+    else:
+    	await bot.send_message(message.from_user.id, text = u'Вы не root!!!')
+
+@dp.message_handler(commands=['del_user'])
+async def process_help_command(message: types.Message):
+	if check_role(message.from_user.id, "admin"):
+		if not get_count_users() == 0:
+			await bot.send_message(message.from_user.id, text = u'Вы в root!!!')
+			await bot.send_message(message.from_user.id, text = u'Выберите пользователя котогрого хотите удалить!!!', reply_markup = kb.generate_buttons(session.query(Users.firstname, Users.user_id)))
+		else:
+			await bot.send_message(message.from_user.id, text = u'Список пользователей пуст!!!')
+	else:
+		await bot.send_message(message.from_user.id, text = u'Пшел отсюда!!!')
+
 @dp.message_handler()
 async def process_digt_command(message: types.Message):
 	if check_user(message.from_user.id):
@@ -143,6 +167,7 @@ async def process_callback_button(callback_query: types.CallbackQuery):
 			session.add(user)
 			session.commit()
 			await bot.send_message(callback_query.data.split(' ')[1], u'Доступ предоставлен!!!')
+			await bot.send_message(callback_query.data.split(' ')[1], u'Нажмите /help')
 			await bot.send_message(callback_query.from_user.id, u'Доступ предоставлен пользователю %s (id:%s)!!!' % (str(callback_query.data.split(' ')[1]), callback_query.data.split(' ')[2]))
 		else:
 			await bot.send_message(callback_query.from_user.id, "Пользователь уже добавлен")
@@ -159,6 +184,15 @@ async def process_callback_button(callback_query: types.CallbackQuery):
 	elif callback_query.data.split(' ')[0] == 'ssh_decline':
 		await bot.send_message(get_admins_id(), u'Пользователю %s (id:%s) отказано в добавлении SSH Ключа' % (callback_query.data.split(' ')[2], callback_query.data.split(' ')[1]))
 		await bot.send_message(callback_query.data.split(' ')[1], u'Вам отказано в добавлении SSH Ключа')
+
+	elif callback_query.data.split(' ')[0] == 'del':
+			id_del = callback_query.data.split(' ')[1]
+			user_del = callback_query.data.split(' ')[2]
+			#ua.del_user(id_del)
+			session.query(Users).filter(Users.firstname == user_del).delete()
+			session.commit()
+			await bot.send_message(get_admins_id(), u'Пользователь %s (id:%s) - УДАЛЕН' % (user_del, id_del))
+			await bot.send_message(id_del, u'Пользователь %s (id:%s) - УДАЛЕН' % (user_del, id_del))
 
 
 if __name__ == '__main__':

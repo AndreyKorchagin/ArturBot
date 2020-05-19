@@ -42,7 +42,9 @@ def get_admins_id():
 		return(i.user_id)
 	return False
 
-
+def get_count_users():
+	count = session.query(Users).count()
+	return count
 # test = Users(user_id = 341115219, firstname = "Timur", role = "user")
 # session.add(test)
 # session.commit()
@@ -53,11 +55,13 @@ def get_admins_id():
 for instance in session.query(Users).order_by(Users.id): 
     print (instance.id, instance.user_id, instance.firstname, instance.role)
 
+print(get_count_users())
 
+# print(session.query(Users.user_id))
+for i in session.query(Users.firstname, Users.user_id):
+	print(i)
 # print(check_user(139050906))
 # print(check_user(1390509060))
 # print(check_role(139050906, "admin"))
 # print(check_role(341115219, "admin"))
-
-
 	

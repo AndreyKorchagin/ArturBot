@@ -37,3 +37,11 @@ def add_ssh(user_id, user_name):
 	ssh.add(ssh_button_yes)
 	ssh.add(ssh_button_no)
 	return ssh
+
+def generate_buttons(users):
+	del_buttons = InlineKeyboardMarkup()
+	# for i in users:
+	# 	print(i.firstname, i.user_id)
+	for item in users:
+		del_buttons.add(InlineKeyboardButton(text = '%s (id:%s)' % (item.firstname, item.user_id ), callback_data = '%s %s %s' % ("del", item.user_id, item.firstname)))
+	return del_buttons
