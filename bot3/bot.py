@@ -8,6 +8,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.sql import select
 import os
+import re
 
 from database import Base, Users
 import keyboards as kb
@@ -32,8 +33,6 @@ session = Session()
 
 
 def check_user(id):
-	# for user_id in session.query(Users.user_id).filter(Users.user_id == id):
-	# 	print(user_id)
 	count = session.query(Users.user_id).filter(Users.user_id == id).count()
 	if count == 1:
 		return True
@@ -44,7 +43,7 @@ def check_user(id):
 
 
 def check_role(id, role):
-	role = session.query(Users.user_id).filter(Users.role == role).count()
+	role = session.query(Users).filter(Users.role == role, Users.user_id == id).count()
 	if role == 1:
 		return True
 	elif role == 0:
@@ -52,18 +51,25 @@ def check_role(id, role):
 	else:
 		print("Error")
 
-def send_admins():
-	for row in session.query(Users):
-		if row.role == "admin":
-			return row.user_id
+def get_admins_id():
+	admins = session.query(Users).filter(Users.role == "admin")
+	for i in admins:
+		return(i.user_id)
 	return False
+
+def add_ssh_pub_to_tmp(key):
+	f = open("/root/telebot/bot2/ssh.tmp", "w+")
+	f.write(key)
+	f.close
+
+def check_add_ssh_pub():
+	return os.popen("/root/telebot/bot2/check_add_ssh_pub.sh").read()
 
 bot = Bot(token = TOKEN)
 dp = Dispatcher(bot)
 
 @dp.message_handler(commands=['start'])
 async def process_start_command(message):
-	send_admins()
 	if check_user(message.from_user.id):
 		if check_role(message.from_user.id, "admin"):
 			await bot.send_message(message.from_user.id, "Hello admin")
@@ -71,7 +77,7 @@ async def process_start_command(message):
 			await bot.send_message(message.from_user.id, "Hello user")
 	else:
 		await bot.send_message(message.from_user.id, "Вы не авторизованы.\nВаш запрос отправлен администратору!!!")
-		await bot.send_message(send_admins(), text = u'Добавить пользователя "%s" (id:%d)?' % (message.from_user.first_name, message.from_user.id), reply_markup=kb.add_new_user(message.from_user.id, message.from_user.first_name))
+		await bot.send_message(get_admins_id(), text = u'Добавить пользователя "%s" (id:%d)?' % (message.from_user.first_name, message.from_user.id), reply_markup=kb.add_new_user(message.from_user.id, message.from_user.first_name))
 
 @dp.message_handler(commands=['help'])
 async def process_help_command(message: types.Message):
@@ -84,22 +90,52 @@ async def process_ssh_add_command(message: types.Message):
 
 @dp.message_handler(commands=['ssh_add'])
 async def process_ssh_add_command(message: types.Message):
-	await bot.send_message("Напиши мне что-нибудь, и я отпрпавлю этот текст тебе в ответ!")
-	#await bot.send_message(message.from_user.id, text = 'HHHHH', reply_markup=kb.hours)
+	if check_user(message.from_user.id):
+		await bot.send_message(message.from_user.id, text = u'Скопируйте ваш публичный ключ, затем вставьте сюда и поставьте вначале "/"')
+	else:
+		await bot.send_message(message.from_user.id, text = u'Вы не авторизованы!!!')
+
+
+@dp.message_handler(commands=['ssh-rsa'])
+async def process_ssh_rsa_command(message: types.Message):
+	if check_user(message.from_user.id):
+		key = re.split(r'\s{1,}', message.text)
+		if len(key) == 3:
+			await bot.send_message(get_admins_id(), text = u'Пользователь %s (id:%s) хочет добавить свой публичный ssh ключ!!!' % (message.from_user.first_name, message.from_user.id), reply_markup = kb.add_ssh(message.from_user.id, message.from_user.first_name))
+			string = key[0]
+			for i in range(1, 3):
+				string = u'%s %s' % (string, key[i])
+			string = u'%s\n' % (string[1:])
+			print(string)
+			add_ssh_pub_to_tmp(string)
+	else:
+		await bot.send_message(message.from_user.id, text = u'Вы не авторизованы!!!')
+
 
 @dp.callback_query_handler(lambda call: True)
 async def process_callback_1hour(callback_query: types.CallbackQuery):
-	#for item in callback_query:
-	#	print(item)
 	if callback_query.data.split(' ')[0] == 'add_approve':
-		#ua.add_user(str(callback_query.data.split(' ')[1]), callback_query.data.split(' ')[2])
-		test = Users(user_id = callback_query.data.split(' ')[1], firstname = callback_query.data.split(' ')[2], role = "user")
-		session.add(test)
-		session.commit()
-		bot.send_message(callback_query.data.split(' ')[1], u'Доступ предоставлен!!!')
-		bot.send_message(callback_query.from_user.id, u'Доступ предоставлен пользователю %s (id:%s)!!!' % (str(callback_query.data.split(' ')[1]), callback_query.data.split(' ')[2]))
+		if not check_user(int(callback_query.data.split(' ')[1])):
+			user = Users(user_id = callback_query.data.split(' ')[1], firstname = callback_query.data.split(' ')[2], role = "user")
+			session.add(user)
+			session.commit()
+			await bot.send_message(callback_query.data.split(' ')[1], u'Доступ предоставлен!!!')
+			await bot.send_message(callback_query.from_user.id, u'Доступ предоставлен пользователю %s (id:%s)!!!' % (str(callback_query.data.split(' ')[1]), callback_query.data.split(' ')[2]))
+		else:
+			await bot.send_message(callback_query.from_user.id, "Пользователь уже добавлен")
 	elif callback_query.data.split(' ')[0] == 'add_decline':
-		bot.send_message(callback_query.data.split(' ')[1], u'Отказано в доступе!!!')
+		await bot.send_message(callback_query.data.split(' ')[1], u'Отказано в доступе!!!')
+
+	elif callback_query.data.split(' ')[0] == 'ssh_approve':
+			if check_add_ssh_pub() == 'True\n':
+				await bot.send_message(get_admins_id(), u'SSH ключ пользователя %s (id:%s) добавлен' % (callback_query.data.split(' ')[2], callback_query.data.split(' ')[1]))
+				await bot.send_message(callback_query.data.split(' ')[1], u'Ваш ключ добавлен и Вам предоставлен доступ')
+			else:
+				await bot.send_message(get_admins_id(), u'Ключ не верный')
+				await bot.send_message(callback_query.data.split(' ')[1], u'Ключ не верный')
+	elif callback_query.data.split(' ')[0] == 'ssh_decline':
+		await bot.send_message(get_admins_id(), u'Пользователю %s (id:%s) отказано в добавлении SSH Ключа' % (callback_query.data.split(' ')[2], callback_query.data.split(' ')[1]))
+		await bot.send_message(callback_query.data.split(' ')[1], u'Вам отказано в добавлении SSH Ключа')
 
 
 if __name__ == '__main__':

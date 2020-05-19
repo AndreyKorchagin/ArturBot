@@ -29,3 +29,11 @@ def add_new_user(user_id, user_name):
 	access.add(YES)
 	access.add(NO)
 	return access
+
+def add_ssh(user_id, user_name):
+	ssh_button_yes = InlineKeyboardButton(text = u'Добавить', callback_data = 'ssh_approve %s %s' % (user_id, user_name))
+	ssh_button_no = InlineKeyboardButton(text = u'Не добавлять', callback_data = 'ssh_decline %s %s' % (user_id, user_name))
+	ssh = InlineKeyboardMarkup()
+	ssh.add(ssh_button_yes)
+	ssh.add(ssh_button_no)
+	return ssh
