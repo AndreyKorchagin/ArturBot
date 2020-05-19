@@ -16,7 +16,7 @@ from database import Base, Users
 import keyboards as kb
 from config import TOKEN
 
-engine = create_engine(f'sqlite:////home/pi/ArturBot/bot3/users.db')
+engine = create_engine(f'sqlite:///users.db')
 
 if not os.path.isfile(f'./home/pi/ArturBot/bot3/users.db'):
     Base.metadata.create_all(engine)
