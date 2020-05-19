@@ -4,8 +4,8 @@
 # SEE IT IF PUB KEY EXIST ECHO True
 # ITS ABILITY OF ssh-keygen CANT WORK WITH PIPE ONLY FILE
 
-PATH_SSH_TMP_KEY=/root/telebot/bot2/ssh.tmp
-PATH_SSH_KEYS=/root/.ssh/authorized_keys
+PATH_SSH_TMP_KEY=/home/pi/ArturBot/bot3/ssh.tmp
+PATH_SSH_KEYS=/home/pi/.ssh/authorized_keys
 
 IS_NOT_PUB=$(ssh-keygen -lf $PATH_SSH_TMP_KEY 2>&1 | grep -c "is not a public key file")
 
