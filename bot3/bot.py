@@ -58,12 +58,12 @@ def get_admins_id():
 	return False
 
 def add_ssh_pub_to_tmp(key):
-	f = open("/root/telebot/bot2/ssh.tmp", "w+")
+	f = open("/home/pi/ArturBot/bot3/ssh.tmp", "w+")
 	f.write(key)
 	f.close
 
 def check_add_ssh_pub():
-	return os.popen("/root/telebot/bot2/check_add_ssh_pub.sh").read()
+	return os.popen("/home/pi/ArturBot/bot3/check_add_ssh_pub.sh").read()
 
 bot = Bot(token = TOKEN)
 dp = Dispatcher(bot)
